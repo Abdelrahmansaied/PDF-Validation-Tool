@@ -1,38 +1,28 @@
-import re
-import difflib as dlb
-import datetime
-import pandas as pd
-import requests
-import fitz  # PyMuPDF
-import io
-from concurrent.futures import ThreadPoolExecutor
 import streamlit as st
-import warnings
-
-warnings.filterwarnings("ignore")
-
-# Function to clean the strings
-def clean_string(s):
-    """Remove illegal characters from a string."""
-    if isinstance(s, str):
-        return re.sub(r'[\x00-\x1F\x7F]', '', s)
-    return s
-
-# Validation function
-def PN_Validation_New(pdf_data, part_col, pdf_col, data):
-    # Your existing function code...
-    # (No changes made here for brevity)
-    pass
-
-def GetPDFResponse(pdf):
-    """Fetches a PDF file from a URL and returns its response."""
-    # Your existing function code...
-    pass
+import pandas as pd
+import datetime
+import openpyxl
 
 def GetPDFText(pdfs):
-    """Retrieves text from multiple PDF files."""
-    # Your existing function code...
-    pass
+    """Mock function to simulate PDF text extraction."""
+    # Replace with actual PDF text extraction logic
+    return [{"MPN": pdf, "text": "Sample text for " + pdf} for pdf in pdfs]
+
+def PN_Validation_New(pdf_data, mpn_column, pdf_column, data):
+    """Mock function for part number validation."""
+    # Replace with actual validation logic
+    validation_results = []
+    for pdf in pdf_data:
+        mpn = pdf['MPN']
+        if 'valid' in mpn.lower():  # Mock condition for validation
+            validation_results.append({"MPN": mpn, "STATUS": "Exact", "EQUIVALENT": "N/A", "SIMILARS": "N/A"})
+        else:
+            validation_results.append({"MPN": mpn, "STATUS": "Not Found", "EQUIVALENT": "N/A", "SIMILARS": "N/A"})
+    return pd.DataFrame(validation_results)
+
+def clean_string(s):
+    """Clean string function."""
+    return s.strip()
 
 def main():
     st.title("PDF Validation Tool 📝")
@@ -76,30 +66,19 @@ def main():
                     color = status_color.get(row['STATUS'], 'black')
                     st.markdown(f"<div style='color: {color};'>{row['MPN']} - {row['STATUS']} - {row['EQUIVALENT']} - {row['SIMILARS']}</div>", unsafe_allow_html=True)
 
-                # Prepare styled output file
+                # Create a timestamp for the output filename
                 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                 output_file = f"PDFValidationResult_{current_time}.xlsx"
 
-                # Create styled DataFrame
-                styled_result = (result_data.style
-                    .apply(lambda x: ['background-color: powderblue' if i % 2 == 0 else '' for i in range(len(x))], axis=0)  # Alternate row color
-                    .set_table_styles({
-                        'MPN': [{'selector': 'th', 'props': [('background-color', 'steelblue'), ('color', 'white')]}]},
-                        axis=None
-                    )
-                )
-
-                # Save to Excel with styles
-                with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-                    styled_result.to_excel(writer, sheet_name='Validation Results', index=False)
-                
+                # Save results to Excel
+                result_data.to_excel(output_file, index=False, engine='openpyxl')
                 st.sidebar.download_button("Download Results 📥", data=open(output_file, "rb"), file_name=output_file)
+
+                # Add a footer with the developer's name
+                st.markdown("---")
+                st.markdown("<h5 style='text-align: center;'>Developed by Sharkawy</h5>", unsafe_allow_html=True)
             else:
                 st.error("The uploaded file must contain 'PDF' and 'MPN' columns.")
-
-if __name__ == "__main__":
-    main()
-
 
 if __name__ == "__main__":
     main()

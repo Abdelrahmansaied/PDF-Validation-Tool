@@ -1,4 +1,4 @@
-mport re
+import re
 import difflib as dlb
 import datetime
 import pandas as pd
@@ -71,8 +71,8 @@ def PN_Validation_New(pdf_data, part_col, pdf_col, data):
         if dlb_match:
             pdf_part = dlb_match[0]
             data['STATUS'][index] = (
-                'Include or Missed Suffixes' 
-                if sub_text(part).lower() != sub_text(pdf_part).lower() 
+                'Include or Missed Suffixes'
+                if sub_text(part).lower() != sub_text(pdf_part).lower()
                 else 'DIF_Format'
             )
             data['EQUIVALENT'][index] = pdf_part
@@ -118,7 +118,7 @@ def GetPDFText(pdfs):
     return pdfData
 
 def main():
-    # Set page title and lean response 
+    # Set page title and lean response
     st.title("PDF Validation Tool 📝")
     
     # Customize the sidebar

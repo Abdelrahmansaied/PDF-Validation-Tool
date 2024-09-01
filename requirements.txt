@@ -4,3 +4,4 @@ PyMuPDF
 streamlit
 openpyxl
 datetime
+sqlalchemy

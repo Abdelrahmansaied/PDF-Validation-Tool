@@ -58,8 +58,9 @@ def main():
                 pdf_data = GetPDFText(pdfs)
                 result_data = PN_Validation_New(pdf_data, 'MPN', 'PDF', data)
 
+                # Clean the output data with handling for NaN and non-string values
                 for col in ['MPN', 'STATUS', 'EQUIVALENT', 'SIMILARS']:
-                    result_data[col] = result_data[col].apply(clean_string)
+                    result_data[col] = result_data[col].fillna("").apply(clean_string)
 
                 # Show results with colors
                 st.subheader("Validation Results")
@@ -95,6 +96,10 @@ def main():
                 st.sidebar.download_button("Download Results 📥", data=open(output_file, "rb"), file_name=output_file)
             else:
                 st.error("The uploaded file must contain 'PDF' and 'MPN' columns.")
+
+if __name__ == "__main__":
+    main()
+
 
 if __name__ == "__main__":
     main()

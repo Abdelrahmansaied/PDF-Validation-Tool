@@ -6,3 +6,4 @@ openpyxl
 datetime
 sqlalchemy
 cx_Oracle
+streamlit_sqlalchemy

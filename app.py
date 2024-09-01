@@ -10,6 +10,12 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+def clean_string(s):
+    """Remove illegal characters from a string."""
+    if isinstance(s, str):
+        return re.sub(r'[\x00-\x1F\x7F]', '', s)  # Remove control characters
+    return s
+
 def PN_Validation_New(pdf_data, part_col, pdf_col, data):
     sub_text = lambda x: re.sub('[\W_]', '', x)
     repet = '{0,20}'
@@ -21,7 +27,7 @@ def PN_Validation_New(pdf_data, part_col, pdf_col, data):
         return {
             match.group('key').strip() + match.group('v').strip()
             for match in re.finditer(
-                f'(^|(?<=[\n ]))(?P<key>[^\n ]{repet}?{re.escape(part)})(?P<v>[\w\-\+\*$$\.,\/]{repet}?[\\W]?)(?=[\n ]|$)',
+                f'(^|(?<=[\n ]))(?P<key>[^\n ]{repet}?{re.escape(part)})(?P<v>[\w\-\+\*$$\.,\/]{repet}?[\W]?)(?=[\n ]|$)',
                 values,
                 flags=re.IGNORECASE
             )
@@ -125,13 +131,17 @@ def main():
             # Validate part numbers
             result_data = PN_Validation_New(pdf_data, 'MPN', 'PDF', data)
 
+            # Clean the output data to remove illegal characters
+            for col in ['MPN', 'DECISION', 'EQUIVALENT', 'SIMILARS']:
+                result_data[col] = result_data[col].apply(clean_string)
+
             # Show results
             st.subheader("Validation Results")
             st.dataframe(result_data[['MPN', 'DECISION', 'EQUIVALENT', 'SIMILARS']])
 
             # Download results
             output_file = "output_file.xlsx"
-            result_data.to_excel(output_file, index=False)
+            result_data.to_excel(output_file, index=False, engine='openpyxl')
             with open(output_file, "rb") as f:
                 st.download_button("Download Results", f, file_name=output_file)
         else:

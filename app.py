@@ -165,7 +165,8 @@ def main():
                     st.markdown(f"<div style='color: {color};'>{row['MPN']} - {row['STATUS']} - {row['EQUIVALENT']} - {row['SIMILARS']}</div>", unsafe_allow_html=True)
 
                 # Download results
-                output_file = "output_file.xlsx"
+                current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_file = f"PDFValidationResult_{current_time}.xlsx"
                 result_data.to_excel(output_file, index=False, engine='openpyxl')
                 st.sidebar.download_button("Download Results 📥", data=open(output_file, "rb"), file_name=output_file)
             else:

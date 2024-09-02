@@ -2,15 +2,18 @@ import os
 import re
 import pandas as pd
 import uuid
-from sqlalchemy import create_engine, text
-import sqlalchemy
+import oracledb
 import streamlit as st
 import warnings
 
 warnings.filterwarnings("ignore")
 
-DATABASE_URI = "oracle+cx_oracle://a136861:AbdalrahmanAlsaieda136861@10.199.104.126/analytics?encoding=UTF-8" 
-
+# Database connection URI
+DATABASE_URI = {
+    'user': 'a136861',
+    'password': 'AbdalrahmanAlsaieda136861',
+    'dsn': '10.199.104.126/analytics'
+}
 
 # Function to clean the strings
 def clean_string(s):
@@ -45,33 +48,40 @@ def process_excel_for_database(uploaded_file):
 
     # Create unique table name
     table_name = f'random_{uuid.uuid4().hex}'
-    engine = create_engine(DATABASE_URI)
-    
-    with engine.connect() as conn:
-        # Write DataFrame to SQL
-        df.to_sql(table_name, conn, if_exists='replace', index=False, dtype={
-            'MPN': sqlalchemy.types.VARCHAR(length=1024),
-            'SE_MAN_NAME': sqlalchemy.types.VARCHAR(length=1024)
-        })
 
-        # Execute SQL commands
-        conn.execute(text(f"ALTER TABLE {table_name} ADD NAN_MPN VARCHAR2(2048)"))
-        conn.execute(text(f"UPDATE {table_name} SET NAN_MPN = CM.NONALPHANUM(MPN)"))
-        conn.execute(text(f"CREATE INDEX pcntt ON {table_name}(NAN_MPN)"))
+    with oracledb.connect(**DATABASE_URI) as conn:
+        cursor = conn.cursor()
+
+        # Create table
+        col_defs = ["MPN VARCHAR2(1024)", "SE_MAN_NAME VARCHAR2(1024)"]
+        cursor.execute(f"CREATE TABLE {table_name} ({', '.join(col_defs)})")
+
+        # Insert DataFrame into SQL table
+        for index, row in df.iterrows():
+            cursor.execute(f"INSERT INTO {table_name} (MPN, SE_MAN_NAME) VALUES (:1, :2)",
+                           (row['MPN'], row['SE_MAN_NAME']))
+        conn.commit()
+
+        # Add and update columns
+        cursor.execute(f"ALTER TABLE {table_name} ADD (NAN_MPN VARCHAR2(2048))")
+        cursor.execute(f"UPDATE {table_name} SET NAN_MPN = CTXN.NONALPHANUM(MPN)")
+        cursor.execute(f"CREATE INDEX pcntt ON {table_name} (NAN_MPN)")
 
         # Query PDF urls
-        pcn = pd.read_sql(text(f"""
-        SELECT {table_name}.MPN, {table_name}.SE_MAN_NAME, CM.xlp_se_manufacturer.man_name,
-               cm.getpdf_url(cm.tbl_pcn_parts.PCN_ID) AS PDF
-        FROM cm.tbl_pcn_parts
-        JOIN CM.tbl_pcn_distinct_feature ON cm.tbl_pcn_parts.pcn_id = CM.tbl_pcn_distinct_feature.pcn_id
-        JOIN {table_name} ON {table_name}.nan_mpn = cm.tbl_pcn_parts.NON_AFFECTED_PRODUCT_NAME
-        JOIN CM.xlp_se_manufacturer ON cm.xlp_se_manufacturer.man_id = cm.tbl_pcn_distinct_feature.man_id
-        AND cm.xlp_se_manufacturer.man_name = {table_name}.SE_MAN_NAME
-        """), conn)
+        query = f"""
+                SELECT {table_name}.MPN, {table_name}.SE_MAN_NAME, CM.xlp_se_manufacturer.man_name,
+                       cm.getpdf_url(cm.tbl_pcn_parts.PCN_ID) AS PDF
+                FROM cm.tbl_pcn_parts
+                JOIN CM.tbl_pcn_distinct_feature ON cm.tbl_pcn_parts.pcn_id = CM.tbl_pcn_distinct_feature.pcn_id
+                JOIN {table_name} ON {table_name}.nan_mpn = cm.tbl_pcn_parts.NON_AFFECTED_PRODUCT_NAME
+                JOIN CM.xlp_se_manufacturer ON cm.xlp_se_manufacturer.man_id = cm.tbl_pcn_distinct_feature.man_id
+                AND cm.xlp_se_manufacturer.man_name = {table_name}.SE_MAN_NAME
+                """
+        pcn = pd.read_sql(query, conn)
 
         # Cleanup
-        conn.execute(text(f"DROP TABLE {table_name}"))
+        cursor.execute(f"DROP TABLE {table_name}")
+        conn.commit()
 
     return pcn
 

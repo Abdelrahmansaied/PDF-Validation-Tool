@@ -5,7 +5,7 @@ channels:
 dependencies:
   - _anaconda_depends=2024.06=py311_mkl_2
   - python=3.11
-  - sqlalchemy=2.0.30
+  - sqlalchemy>=1.4.0
   - streamlit
   - abseil-cpp=20211102.0=hd77b12b_0
   - aiobotocore=2.12.3=py311haa95532_0

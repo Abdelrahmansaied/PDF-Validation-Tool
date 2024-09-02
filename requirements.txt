@@ -4,5 +4,5 @@ PyMuPDF
 streamlit
 openpyxl
 datetime
-sqlalchemy
+sqlalchemy==2.0.30
 cx_Oracle

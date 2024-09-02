@@ -1,3 +1,4 @@
+import os
 import re
 import pandas as pd
 import uuid
@@ -7,6 +8,11 @@ import streamlit as st
 import warnings
 
 warnings.filterwarnings("ignore")
+
+# Add the path to the directory containing the required DLLs
+dll_path = r"\\10.199.104.106\scrubbing\Scrubbing\Scrubbing documents\New folder\Sharkawy\a111"  # Adjust this to your actual DLLs path
+if dll_path not in os.environ['PATH']:
+    os.environ['PATH'] = dll_path + ";" + os.environ['PATH']
 
 # Function to clean the strings
 def clean_string(s):
@@ -69,6 +75,7 @@ def process_excel_for_database(uploaded_file):
 
     # Cleanup
     conn2.execute(text(f"DROP TABLE {table_name}"))
+    conn2.close()  # Always close the connection
 
     return pcn
 
@@ -100,7 +107,7 @@ def main():
                 except Exception as e:
                     st.error(f"Error reading the Excel file: {e}")
                     return
-                
+
                 # Handling the case for the validation with MPN and SE_MAN_NAME
                 if all(col in data.columns for col in ['MPN', 'SE_MAN_NAME']):
                     st.write("Processing database entries...")

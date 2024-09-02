@@ -11,9 +11,14 @@ warnings.filterwarnings("ignore")
 
 # Add the path to the directory containing the required DLLs
 # Adjust the path as necessary for your shared location
-dll_path = r"\\10.199.104.106\\scrubbing\\Scrubbing\\Scrubbing documents\\New folder\\Sharkawy\\GRADING_TOOL_SCRUBBING\\_internal"  # Update this to your actual shared path
-if dll_path not in os.environ['PATH']:
-    os.environ['PATH'] = dll_path + ";" + os.environ['PATH']
+# Check if the specified DLL path exists
+dll_path = r"\\10.199.104.106\scrubbing\Scrubbing\Scrubbing documents\New folder\Sharkawy\GRADING_TOOL_SCRUBBING\_internal"
+
+if os.path.exists(dll_path):
+    st.success("DLL path is accessible! ✅")
+else:
+    st.error("DLL path is NOT accessible! ❌ Check your network permissions or path.")
+
 
 # Function to clean the strings
 def clean_string(s):

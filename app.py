@@ -9,8 +9,13 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-# Database URI
 DATABASE_URI = os.getenv('DATABASE_URI')
+
+# Debug: Print DATABASE_URI
+if DATABASE_URI is None:
+    st.error("DATABASE_URI is not set. Please check your configuration.")
+else:
+    st.write(f"Connected to database at {DATABASE_URI}")  # Temporary debug for testing
 
 # Function to clean the strings
 def clean_string(s):

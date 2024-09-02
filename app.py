@@ -10,7 +10,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # Add the path to the directory containing the required DLLs
-dll_path = r"\\10.199.104.106\scrubbing\Scrubbing\Scrubbing documents\New folder\Sharkawy\GRADING_TOOL_SCRUBBING\_internal"  # Adjust this to your actual DLLs path
+# Adjust the path as necessary for your shared location
+dll_path = r"\\10.199.104.106\\scrubbing\\Scrubbing\\Scrubbing documents\\New folder\\Sharkawy\\GRADING_TOOL_SCRUBBING\\_internal"  # Update this to your actual shared path
 if dll_path not in os.environ['PATH']:
     os.environ['PATH'] = dll_path + ";" + os.environ['PATH']
 
@@ -49,7 +50,7 @@ def process_excel_for_database(uploaded_file):
     table_name = f'random_{uuid.uuid4().hex}'
     
     # Database connection string
-    engine = create_engine("oracle+cx_oracle://a136861:AbdalrahmanAlsaieda136861@10.199.104.126/analytics?encoding=UTF-8")
+    engine = create_engine("oracle+cx_oracle://username:password@host:port/service_name")
     conn2 = engine.connect()
 
     # Write DataFrame to SQL
@@ -107,7 +108,7 @@ def main():
                 except Exception as e:
                     st.error(f"Error reading the Excel file: {e}")
                     return
-
+                
                 # Handling the case for the validation with MPN and SE_MAN_NAME
                 if all(col in data.columns for col in ['MPN', 'SE_MAN_NAME']):
                     st.write("Processing database entries...")

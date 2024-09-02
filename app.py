@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # Database URI
-DATABASE_URI = "oracle+cx_oracle://a136861:AbdalrahmanAlsaieda136861@10.199.104.126/analytics?encoding=UTF-8" # Update with your details
+DATABASE_URI = os.getenv('DATABASE_URI')
 
 # Function to clean the strings
 def clean_string(s):

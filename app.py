@@ -12,7 +12,7 @@ warnings.filterwarnings("ignore")
 DATABASE_URI = {
     'user': 'a136861',
     'password': 'AbdalrahmanAlsaieda136861',
-    'dsn': '10.199.104.126/analytics',port=1521
+    'dsn': '10.199.104.126/analytics',port:1521
 }
 
 # Function to clean the strings

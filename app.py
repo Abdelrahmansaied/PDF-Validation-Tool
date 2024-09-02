@@ -11,11 +11,6 @@ warnings.filterwarnings("ignore")
 
 DATABASE_URI = "oracle+cx_oracle://a136861:AbdalrahmanAlsaieda136861@10.199.104.126/analytics?encoding=UTF-8" 
 
-# Debug: Print DATABASE_URI
-if DATABASE_URI is None:
-    st.error("DATABASE_URI is not set. Please check your configuration.")
-else:
-    st.write(f"Connected to database at {DATABASE_URI}")  # Temporary debug for testing
 
 # Function to clean the strings
 def clean_string(s):

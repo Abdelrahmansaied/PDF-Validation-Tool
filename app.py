@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # Add the path to the directory containing the required DLLs
-dll_path = r"\\10.199.104.106\scrubbing\Scrubbing\Scrubbing documents\New folder\Sharkawy\a111"  # Adjust this to your actual DLLs path
+dll_path = r"\\10.199.104.106\scrubbing\Scrubbing\Scrubbing documents\New folder\Sharkawy\GRADING_TOOL_SCRUBBING\_internal"  # Adjust this to your actual DLLs path
 if dll_path not in os.environ['PATH']:
     os.environ['PATH'] = dll_path + ";" + os.environ['PATH']
 

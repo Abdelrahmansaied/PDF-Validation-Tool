@@ -8,6 +8,10 @@ import streamlit as st
 import warnings
 
 warnings.filterwarnings("ignore")
+
+# Database URI
+DATABASE_URI = "oracle+cx_oracle://a136861:AbdalrahmanAlsaieda136861@10.199.104.126/analytics?encoding=UTF-8" # Update with your details
+
 # Function to clean the strings
 def clean_string(s):
     """Remove illegal characters from a string."""
@@ -21,11 +25,11 @@ def GetPDFText(pdfs):
     return [{"MPN": pdf, "text": "Sample text for " + pdf} for pdf in pdfs]
 
 # Mock function for part number validation
-def PN_Validation_New(pdf_data, part_col, pdf_col, data):
+def PN_Validation_New(pdf_data):
     validation_results = []
     for pdf in pdf_data:
         mpn = pdf['MPN']
-        if 'valid' in mpn.lower():  # Mock condition for validation
+        if 'valid' in mpn.lower():
             validation_results.append({"MPN": mpn, "STATUS": "Exact", "EQUIVALENT": "N/A", "SIMILARS": "N/A"})
         else:
             validation_results.append({"MPN": mpn, "STATUS": "Not Found", "EQUIVALENT": "N/A", "SIMILARS": "N/A"})
@@ -41,35 +45,33 @@ def process_excel_for_database(uploaded_file):
 
     # Create unique table name
     table_name = f'random_{uuid.uuid4().hex}'
+    engine = create_engine(DATABASE_URI)
     
-    # Database connection string
-    engine = create_engine("oracle+cx_oracle://a136861:AbdalrahmanAlsaieda136861@10.199.104.126/analytics?encoding=UTF-8")
-    conn2 = engine.connect()
+    with engine.connect() as conn:
+        # Write DataFrame to SQL
+        df.to_sql(table_name, conn, if_exists='replace', index=False, dtype={
+            'MPN': sqlalchemy.types.VARCHAR(length=1024),
+            'SE_MAN_NAME': sqlalchemy.types.VARCHAR(length=1024)
+        })
 
-    # Write DataFrame to SQL
-    df.to_sql(table_name, engine, if_exists='replace', chunksize=5000,
-              method=None, dtype={'MPN': sqlalchemy.types.VARCHAR(length=1024),
-                                  'SE_MAN_NAME': sqlalchemy.types.VARCHAR(length=1024)})
+        # Execute SQL commands
+        conn.execute(text(f"ALTER TABLE {table_name} ADD NAN_MPN VARCHAR2(2048)"))
+        conn.execute(text(f"UPDATE {table_name} SET NAN_MPN = CM.NONALPHANUM(MPN)"))
+        conn.execute(text(f"CREATE INDEX pcntt ON {table_name}(NAN_MPN)"))
 
-    # Execute SQL commands
-    conn2.execute(text(f"ALTER TABLE {table_name} ADD NAN_MPN VARCHAR2(2048)"))
-    conn2.execute(text(f"UPDATE {table_name} SET NAN_MPN = CM.NONALPHANUM(MPN)"))
-    conn2.execute(text(f"CREATE INDEX pcntt ON {table_name}(NAN_MPN)"))
+        # Query PDF urls
+        pcn = pd.read_sql(text(f"""
+        SELECT {table_name}.MPN, {table_name}.SE_MAN_NAME, CM.xlp_se_manufacturer.man_name,
+               cm.getpdf_url(cm.tbl_pcn_parts.PCN_ID) AS PDF
+        FROM cm.tbl_pcn_parts
+        JOIN CM.tbl_pcn_distinct_feature ON cm.tbl_pcn_parts.pcn_id = CM.tbl_pcn_distinct_feature.pcn_id
+        JOIN {table_name} ON {table_name}.nan_mpn = cm.tbl_pcn_parts.NON_AFFECTED_PRODUCT_NAME
+        JOIN CM.xlp_se_manufacturer ON cm.xlp_se_manufacturer.man_id = cm.tbl_pcn_distinct_feature.man_id
+        AND cm.xlp_se_manufacturer.man_name = {table_name}.SE_MAN_NAME
+        """), conn)
 
-    # Query PDF urls
-    pcn = pd.DataFrame(conn2.execute(text(f"""
-    SELECT {table_name}.MPN, {table_name}.SE_MAN_NAME, CM.xlp_se_manufacturer.man_name,
-           cm.getpdf_url(cm.tbl_pcn_parts.PCN_ID) AS PDF
-    FROM cm.tbl_pcn_parts
-    JOIN CM.tbl_pcn_distinct_feature ON cm.tbl_pcn_parts.pcn_id = CM.tbl_pcn_distinct_feature.pcn_id
-    JOIN {table_name} ON {table_name}.nan_mpn = cm.tbl_pcn_parts.NON_AFFECTED_PRODUCT_NAME
-    JOIN CM.xlp_se_manufacturer ON cm.xlp_se_manufacturer.man_id = cm.tbl_pcn_distinct_feature.man_id
-    AND cm.xlp_se_manufacturer.man_name = {table_name}.SE_MAN_NAME
-    """)))
-
-    # Cleanup
-    conn2.execute(text(f"DROP TABLE {table_name}"))
-    conn2.close()  # Always close the connection
+        # Cleanup
+        conn.execute(text(f"DROP TABLE {table_name}"))
 
     return pcn
 
@@ -82,7 +84,7 @@ def main():
 
     if selected_option == "Main Task":
         st.write("### Main Task Functionality")
-        # Your main task functionality goes here
+        # Your main task functionality can be added here
 
     elif selected_option == "Excel Database Processing":
         st.write("### Excel Database Processing Feature 📊")
@@ -94,51 +96,35 @@ def main():
 
             if st.sidebar.button("Process Excel 📥"):
                 try:
-                    # Load data for database processing
                     data = pd.read_excel(uploaded_file)
                     st.write("### Uploaded Data:")
                     st.dataframe(data.head())
-                except Exception as e:
-                    st.error(f"Error reading the Excel file: {e}")
-                    return
-                
-                # Handling the case for the validation with MPN and SE_MAN_NAME
-                if all(col in data.columns for col in ['MPN', 'SE_MAN_NAME']):
-                    st.write("Processing database entries...")
-                    
-                    try:
+
+                    if all(col in data.columns for col in ['MPN', 'SE_MAN_NAME']):
+                        st.write("Processing database entries...")
                         pcn = process_excel_for_database(uploaded_file)
                         pdfs = pcn['PDF'].tolist()
                         pdf_data = GetPDFText(pdfs)
-                        result_data = PN_Validation_New(pdf_data, 'MPN', 'PDF', pcn)
+                        result_data = PN_Validation_New(pdf_data)
 
                         # Clean the output data
                         for col in ['MPN', 'STATUS', 'EQUIVALENT', 'SIMILARS']:
                             result_data[col] = result_data[col].apply(clean_string)
 
-                        # Display results with colors
+                        # Display results
                         st.subheader("Validation Results")
-                        status_color = {
-                            'Exact': 'green',
-                            'DIF_Format': '#FFA500',
-                            'Include or Missed Suffixes': 'orange',
-                            'Not Found': 'red',
-                            'May be broken': 'grey'
-                        }
-
                         for index, row in result_data.iterrows():
-                            color = status_color.get(row['STATUS'], 'black')
-                            st.markdown(f"<div style='color: {color};'>{row['MPN']} - {row['STATUS']} - {row['EQUIVALENT']} - {row['SIMILARS']}</div>", unsafe_allow_html=True)
+                            st.markdown(f"{row['MPN']} - {row['STATUS']} - {row['EQUIVALENT']} - {row['SIMILARS']}")
 
                         # Download results
                         output_file = f"PDFValidationResult.xlsx"
-                        result_data.to_excel(output_file, index=False, engine='openpyxl')
+                        result_data.to_excel(output_file, index=False)
                         st.sidebar.download_button("Download Results 📥", data=open(output_file, "rb"), file_name=output_file)
 
-                    except Exception as e:
-                        st.error(f"An error occurred while processing: {e}")
-                else:
-                    st.error("The uploaded file must contain 'MPN' and 'SE_MAN_NAME' columns.")
+                    else:
+                        st.error("The uploaded file must contain 'MPN' and 'SE_MAN_NAME' columns.")
+                except Exception as e:
+                    st.error(f"An error occurred while processing: {e}")
 
 if __name__ == "__main__":
     main()

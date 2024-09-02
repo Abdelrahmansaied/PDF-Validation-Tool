@@ -50,7 +50,7 @@ def process_excel_for_database(uploaded_file):
     table_name = f'random_{uuid.uuid4().hex}'
     
     # Database connection string
-    engine = create_engine("oracle+cx_oracle://username:password@host:port/service_name")
+    engine = create_engine("oracle+cx_oracle://a136861:AbdalrahmanAlsaieda136861@10.199.104.126/analytics?encoding=UTF-8")
     conn2 = engine.connect()
 
     # Write DataFrame to SQL

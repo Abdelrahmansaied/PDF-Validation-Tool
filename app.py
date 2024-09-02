@@ -1,4 +1,4 @@
-import os
+`import os
 import re
 import pandas as pd
 import uuid
@@ -9,7 +9,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-DATABASE_URI = os.getenv('DATABASE_URI')
+DATABASE_URI = "oracle+cx_oracle://a136861:AbdalrahmanAlsaieda136861@10.199.104.126/analytics?encoding=UTF-8" 
 
 # Debug: Print DATABASE_URI
 if DATABASE_URI is None:

@@ -1,12 +1,47 @@
+import os
 import re
 import pandas as pd
 import uuid
 from sqlalchemy import create_engine, text
 import sqlalchemy
 import streamlit as st
+import requests
+import zipfile
+import io
 import warnings
 
 warnings.filterwarnings("ignore")
+
+# Function to download a ZIP file from a given URL
+def download_zip(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.content
+    return None
+
+# Function to extract the ZIP file
+def extract_zip(content, extract_to):
+    with zipfile.ZipFile(io.BytesIO(content)) as zip_file:
+        zip_file.extractall(extract_to)
+
+# Function to download and extract Instant Client DLL files
+def download_instant_client():
+    # URL for the ZIP file containing the DLLs
+    zip_url = 'https://drive-data-export-eu.usercontent.google.com/download/15nci6fofda8jc487dsos3shspejcvpf/40dao7onbafnug58nutaktuuqfpigjbp/1725349500000/78bffaa5-a2a9-41fd-a37d-57848fe4a35b/100060732374272085211/ADt3v-PW8kSkwo4Cn7A76oOnzBuLpRjCeJn9RJg3hXY-zlHatyERxUEmv2SxsZ_SJ5d9PuD3VvDhGaz3kQUbXYQ4enQWx0ZoD5gN11C9LuS2BVgztKjUqA1vschJ87aM2F_PDz2J8uCmY53yRY4J44scsW40vHBGTSBLjptDZ8nLFG5RT7BNyaN7k0hFUK9_NTfDM8TVb6SkQRK1n441TXNiuHOpzqVuN8K4qSZnrFxKwg3hZPA_X742nas-VItfO4ZRYgkTMIbDDQqhFezvnf2g8fQEkQKPjqDVpNJv1fha2KQY4PlQFiNtOpeqwCndsdnBO2tCWt9m?j=78bffaa5-a2a9-41fd-a37d-57848fe4a35b&user=947978676346&i=0&authuser=0'
+
+    # Create the instantclient directory if it doesn't exist
+    extract_to = 'instantclient'
+    os.makedirs(extract_to, exist_ok=True)
+
+    st.write("Downloading Instant Client ZIP file...")
+    zip_content = download_zip(zip_url)
+
+    if zip_content:
+        st.success("Downloaded ZIP file. Extracting...")
+        extract_zip(zip_content, extract_to)
+        st.success("Extraction completed.")
+    else:
+        st.error("Failed to download the ZIP file.")
 
 # Function to clean the strings
 def clean_string(s):
@@ -75,6 +110,9 @@ def process_excel_for_database(uploaded_file):
 def main():
     st.title("Main Application 🛠️")
 
+    # Download Instant Client files
+    download_instant_client()
+
     # Sidebar navigation
     st.sidebar.header("Navigation")
     selected_option = st.sidebar.selectbox("Select a Feature:", ["Main Task", "Excel Database Processing"])
@@ -107,7 +145,7 @@ def main():
                     
                     try:
                         pcn = process_excel_for_database(uploaded_file)
-                        pdfs = pcn['pdf'].tolist()
+                        pdfs = pcn['PDF'].tolist()  # Ensure the column name matches
                         pdf_data = GetPDFText(pdfs)
                         result_data = PN_Validation_New(pdf_data, 'mpn', 'pdf', pcn)
 

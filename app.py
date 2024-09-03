@@ -1,10 +1,9 @@
 import oracledb
 
 DATABASE_URI = {
-    'user': 'your_user',
-    'password': 'your_password',
-    'dsn': 'your_dsn',
-    'port': 1521
+'user': 'a136861',
+'password': 'AbdalrahmanAlsaieda136861',
+'dsn': '10.199.104.126/analytics','port':1521
 }
 
 try:

@@ -8,7 +8,7 @@ import warnings
 import os
 import zipfile
 import cx_Oracle
-cx_Oracle.init_oracle_client(lib_dir=r"\\10.199.104.106\scrubbing\Scrubbing\Scrubbing documents\New folder\Sharkawy")
+cx_Oracle.init_oracle_client(lib_dir=r"C:\\Users\\136861")
 
 warnings.filterwarnings("ignore")
 

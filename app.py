@@ -16,20 +16,95 @@ def clean_string(s):
     return s
 
 # Mock function to simulate PDF text extraction
-def GetPDFText(pdfs):
-    """Mock function to simulate PDF text extraction."""
-    return [{"MPN": pdf, "text": "Sample text for " + pdf} for pdf in pdfs]
-
-# Mock function for part number validation
 def PN_Validation_New(pdf_data, part_col, pdf_col, data):
-    validation_results = []
-    for pdf in pdf_data:
-        mpn = pdf['MPN']
-        if 'valid' in mpn.lower():  # Mock condition for validation
-            validation_results.append({"MPN": mpn, "STATUS": "Exact", "EQUIVALENT": "N/A", "SIMILARS": "N/A"})
+    sub_text = lambda x: re.sub('[\W_]', '', x)
+    repet = '{0,20}'
+    spa = "[^\w#*]{0,2}?"
+    ex_dif_match = lambda x, values: re.search(f'(^|[\n ]{spa})(?P<k>{x})({spa}[\n ]|$)', values, flags=re.IGNORECASE)
+    parenthesis_part = lambda x, values: re.search(f'(^|[\n ]{spa})$(?P<k>{x})$({spa}[\n ]|$)', values, flags=re.IGNORECASE)
+    
+    def semilarity(part, values):
+        return {
+            match.group('key').strip() + match.group('v').strip()
+            for match in re.finditer(
+                f'(^|(?<=[\n ]))(?P<key>[^\n ]{repet}?{re.escape(part)})(?P<v>[\w\-\+\*$$\.,\/]{repet}?[\W]?)(?=[\n ]|$)',
+                values,
+                flags=re.IGNORECASE
+            )
+        }
+
+    def SET_DESC(index):
+        part = data[part_col][index]
+        pdf_url = data[pdf_col][index]
+        if pdf_url not in pdf_data:
+            data['DECISION'][index] = 'Invalid PDF'
+            return None
+        values = pdf_data[pdf_url]
+        
+        if len(values) <= 100:
+            data['DECISION'][index] = 'OCR'
+            return None
+
+        exact = ex_dif_match(re.escape(part), values) or parenthesis_part(re.escape(part), values)
+        if exact:
+            data['DECISION'][index] = 'Exact'
+            data['EQUIVALENT'][index] = exact.group('k')
+            semi_regex = semilarity(part, values)
+            if semi_regex:
+                data['SIMILARS'][index] = '|'.join(semi_regex)
+            return None
+        
+        dif_part = '[\W_]{0,3}?'.join(sub_text(part).lower())
+        dif_regex = ex_dif_match(dif_part, values)
+        if dif_regex:
+            data['DECISION'][index] = 'DIF_Format'
+            data['EQUIVALENT'][index] = dif_regex.group('k')
+            semi_regex = semilarity(part, values)
+            if semi_regex:
+                data['SIMILARS'][index] = '|'.join(semi_regex)
+            return None
+        
+        dlb_match = dlb.get_close_matches(part, re.split('[ \n]', values), n=1, cutoff=0.65)
+        if dlb_match:
+            pdf_part = dlb_match[0]
+            data['DECISION'][index] = 'Contains +/–' if sub_text(part).lower() != sub_text(pdf_part).lower() else 'DIF_Format'
+            data['EQUIVALENT'][index] = pdf_part
+            return None
         else:
-            validation_results.append({"MPN": mpn, "STATUS": "Not Found", "EQUIVALENT": "N/A", "SIMILARS": "N/A"})
-    return pd.DataFrame(validation_results)
+            data['DECISION'][index] = 'Need Check'
+            semi_match = re.search(f'(^|[ \n])(?P<k>.{repet}?{re.escape(part)}.{repet}?)($|[ \n])', values)
+            if semi_match:
+                data['EQUIVALENT'][index] = semi_match.group('k')
+
+    data[['DECISION', 'EQUIVALENT', 'SIMILARS']] = None
+    with ThreadPoolExecutor() as executor:
+        executor.map(SET_DESC, data.index)
+
+    return data
+
+def GetPDFResponse(pdf):
+    try:
+        response = requests.get(pdf, timeout=10)
+        response.raise_for_status()  # Raise an error for bad responses
+        return pdf, io.BytesIO(response.content)
+    except Exception as e:
+        return pdf, None
+
+def GetPDFText(pdfs):
+    pdfData = {}
+    chunks = [pdfs[i:i + 100] for i in range(0, len(pdfs), 100)]  # Adjust chunk size if needed
+    for chunk in chunks:
+        with ThreadPoolExecutor() as executor:
+            results = list(executor.map(GetPDFResponse, chunk))
+        
+        for pdf, byt in results:
+            if byt is not None:  # Only process if byt is valid
+                try:
+                    with fitz.open(stream=byt, filetype='pdf') as doc:
+                        pdfData[pdf] = '\n'.join(page.get_text() for page in doc)
+                except Exception as e:
+                    continue
+    return pdfData
 
 def process_excel_for_database(uploaded_file):
     """Processes the Excel file and interacts with the database."""

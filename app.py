@@ -80,7 +80,7 @@ def main():
     st.title("Main Application 🛠️")
 
     # Set the path for your Oracle client files
-    oracle_client_path = r"C:\Users\136861\instantclient_23_5"  # Update this path
+    oracle_client_path = r"C:\Users\\136861\\instantclient_23_5"  # Update this path
 
     # Set Oracle client environment variables
     set_oracle_client_env(oracle_client_path)

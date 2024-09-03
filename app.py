@@ -6,19 +6,11 @@ import sqlalchemy
 import streamlit as st
 import warnings
 import os
-import zipfile
 import cx_Oracle
 import io
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
-
-# Function to unzip Oracle client files (if not already unzipped)
-def unzip_oracle_client(zip_path, extract_to):
-    """Unzip the Oracle client files."""
-    if not os.path.exists(extract_to):
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_to)
 
 # Function to set up environment variables for Oracle client
 def set_oracle_client_env(oracle_client_path):
@@ -88,17 +80,13 @@ def main():
     st.title("Main Application 🛠️")
 
     # Set the path for your Oracle client files
-    oracle_client_zip_path = r"C:\\Users\136861\oc.zip"  # Update this path
-    oracle_client_extracted_path = r"C:\\Users\136861"  # Update this path
-
-    # Unzip Oracle client files
-    unzip_oracle_client(oracle_client_zip_path, oracle_client_extracted_path)
+    oracle_client_path = r"C:\Users\136861"  # Update this path
 
     # Set Oracle client environment variables
-    set_oracle_client_env(oracle_client_extracted_path)
+    set_oracle_client_env(oracle_client_path)
 
     # Initialize Oracle client
-    cx_Oracle.init_oracle_client(lib_dir=oracle_client_extracted_path)
+    cx_Oracle.init_oracle_client(lib_dir=oracle_client_path)
 
     # Sidebar navigation
     st.sidebar.header("Navigation")

@@ -88,8 +88,8 @@ def main():
     st.title("Main Application 🛠️")
 
     # Set the path for your Oracle client files
-    oracle_client_zip_path = r"C:\\Users\\136861\\oc.zip"  # Update this path
-    oracle_client_extracted_path = r"C:\\Users\\136861"  # Update this path
+    oracle_client_zip_path = r"C:\\Users\136861\oc.zip"  # Update this path
+    oracle_client_extracted_path = r"C:\\Users\136861"  # Update this path
 
     # Unzip Oracle client files
     unzip_oracle_client(oracle_client_zip_path, oracle_client_extracted_path)

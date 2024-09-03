@@ -1,64 +1,79 @@
-import os
 import re
 import pandas as pd
 import uuid
 from sqlalchemy import create_engine, text
 import sqlalchemy
 import streamlit as st
-import requests
-import zipfile
-import io
 import warnings
 
 warnings.filterwarnings("ignore")
 
-# Function to download a ZIP file from a given URL
-def download_zip(url):
-    response = requests.get(url)
-    if response.status_code == 200:
-        # Check the content type
-        if 'zip' in response.headers.get('Content-Type', ''):
-            return response.content
+# Function to clean the strings
+def clean_string(s):
+    """Remove illegal characters from a string."""
+    if isinstance(s, str):
+        return re.sub(r'[\x00-\x1F\x7F]', '', s)
+    return s
+
+# Mock function to simulate PDF text extraction
+def GetPDFText(pdfs):
+    """Mock function to simulate PDF text extraction."""
+    return [{"MPN": pdf, "text": "Sample text for " + pdf} for pdf in pdfs]
+
+# Mock function for part number validation
+def PN_Validation_New(pdf_data, part_col, pdf_col, data):
+    validation_results = []
+    for pdf in pdf_data:
+        mpn = pdf['MPN']
+        if 'valid' in mpn.lower():  # Mock condition for validation
+            validation_results.append({"MPN": mpn, "STATUS": "Exact", "EQUIVALENT": "N/A", "SIMILARS": "N/A"})
         else:
-            st.error("The URL does not point to a valid ZIP file.")
-    else:
-        st.error(f"Failed to download ZIP file: {response.status_code}")
-    return None
+            validation_results.append({"MPN": mpn, "STATUS": "Not Found", "EQUIVALENT": "N/A", "SIMILARS": "N/A"})
+    return pd.DataFrame(validation_results)
 
-# Function to extract the ZIP file
-def extract_zip(content, extract_to):
-    try:
-        with zipfile.ZipFile(io.BytesIO(content)) as zip_file:
-            zip_file.extractall(extract_to)
-            return True
-    except zipfile.BadZipFile:
-        st.error("The downloaded file is not a valid ZIP file.")
-        return False
+def process_excel_for_database(uploaded_file):
+    """Processes the Excel file and interacts with the database."""
+    df = pd.read_excel(uploaded_file)
 
-# Function to download and extract Instant Client DLL files
-def download_instant_client():
-    zip_url = 'https://drive-data-export-eu.usercontent.google.com/download/15nci6fofda8jc487dsos3shspejcvpf/40dao7onbafnug58nutaktuuqfpigjbp/1725349500000/78bffaa5-a2a9-41fd-a37d-57848fe4a35b/100060732374272085211/ADt3v-PW8kSkwo4Cn7A76oOnzBuLpRjCeJn9RJg3hXY-zlHatyERxUEmv2SxsZ_SJ5d9PuD3VvDhGaz3kQUbXYQ4enQWx0ZoD5gN11C9LuS2BVgztKjUqA1vschJ87aM2F_PDz2J8uCmY53yRY4J44scsW40vHBGTSBLjptDZ8nLFG5RT7BNyaN7k0hFUK9_NTfDM8TVb6SkQRK1n441TXNiuHOpzqVuN8K4qSZnrFxKwg3hZPA_X742nas-VItfO4ZRYgkTMIbDDQqhFezvnf2g8fQEkQKPjqDVpNJv1fha2KQY4PlQFiNtOpeqwCndsdnBO2tCWt9m?j=78bffaa5-a2a9-41fd-a37d-57848fe4a35b&user=947978676346&i=0&authuser=0'
+    # Ensure the necessary columns are present
+    if 'MPN' not in df.columns or 'SE_MAN_NAME' not in df.columns:
+        raise ValueError("The uploaded file must contain 'MPN' and 'SE_MAN_NAME' columns.")
 
-    extract_to = 'instantclient'
-    os.makedirs(extract_to, exist_ok=True)
+    # Create unique table name
+    table_name = f'random_{uuid.uuid4().hex}'
+    
+    # Database connection string
+    engine = create_engine("oracle+cx_oracle://a136861:AbdalrahmanAlsaieda136861@10.199.104.126/analytics?encoding=UTF-8")
+    conn2 = engine.connect()
 
-    st.write("Downloading Instant Client ZIP file...")
-    zip_content = download_zip(zip_url)
+    # Write DataFrame to SQL
+    df.to_sql(table_name, engine, if_exists='replace', chunksize=5000,
+              method=None, dtype={'MPN': sqlalchemy.types.VARCHAR(length=1024),
+                                  'SE_MAN_NAME': sqlalchemy.types.VARCHAR(length=1024)})
 
-    if zip_content:
-        st.success("Downloaded ZIP file. Extracting...")
-        if extract_zip(zip_content, extract_to):
-            st.success("Extraction completed.")
-    else:
-        st.error("Failed to download the ZIP file.")
+    # Execute SQL commands
+    conn2.execute(text(f"ALTER TABLE {table_name} ADD NAN_MPN VARCHAR2(2048)"))
+    conn2.execute(text(f"UPDATE {table_name} SET NAN_MPN = CM.NONALPHANUM(MPN)"))
+    conn2.execute(text(f"CREATE INDEX pcntt ON {table_name}(NAN_MPN)"))
 
-# Other functions remain unchanged...
+    # Query PDF urls
+    pcn = pd.DataFrame(conn2.execute(text(f"""
+    SELECT {table_name}.MPN, {table_name}.SE_MAN_NAME, CM.xlp_se_manufacturer.man_name,
+           cm.getpdf_url(cm.tbl_pcn_parts.PCN_ID) AS PDF
+    FROM cm.tbl_pcn_parts
+    JOIN CM.tbl_pcn_distinct_feature ON cm.tbl_pcn_parts.pcn_id = CM.tbl_pcn_distinct_feature.pcn_id
+    JOIN {table_name} ON {table_name}.nan_mpn = cm.tbl_pcn_parts.NON_AFFECTED_PRODUCT_NAME
+    JOIN CM.xlp_se_manufacturer ON cm.xlp_se_manufacturer.man_id = cm.tbl_pcn_distinct_feature.man_id
+    AND cm.xlp_se_manufacturer.man_name = {table_name}.SE_MAN_NAME
+    """)))
+
+    # Cleanup
+    conn2.execute(text(f"DROP TABLE {table_name}"))
+
+    return pcn
 
 def main():
     st.title("Main Application 🛠️")
-
-    # Download Instant Client files
-    download_instant_client()
 
     # Sidebar navigation
     st.sidebar.header("Navigation")
@@ -92,7 +107,7 @@ def main():
                     
                     try:
                         pcn = process_excel_for_database(uploaded_file)
-                        pdfs = pcn['PDF'].tolist()  # Ensure the column name matches
+                        pdfs = pcn['pdf'].tolist()
                         pdf_data = GetPDFText(pdfs)
                         result_data = PN_Validation_New(pdf_data, 'mpn', 'pdf', pcn)
 
